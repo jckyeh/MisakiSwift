@@ -27,17 +27,27 @@ let texts: [(originalText: String, britishPhonetization: String, americanPhoneit
   }
 }
 
-@Test func testEnglishNum2Word_TwentyOneThroughTwentyNine() {
+@Test func testEnglishNum2Word_TwentyThroughTwentyNine() {
   let converter = EnglishNum2Word()
   let expected = [
-    "twenty-one", "twenty-two", "twenty-three",
+    "twenty", "twenty-one", "twenty-two", "twenty-three",
     "twenty-four", "twenty-five", "twenty-six",
     "twenty-seven", "twenty-eight", "twenty-nine"
   ]
 
   for (offset, words) in expected.enumerated() {
-    #expect(converter.convert(Decimal(21 + offset)) == words)
+    #expect(converter.convert(Decimal(20 + offset)) == words)
   }
+}
+
+@Test func testEnglishG2P_QuotedTwentyOneIsNotReducedToOne() {
+  let englishG2P = EnglishG2P(british: false)
+  let (numeric, _) = englishG2P.phonemize(text: "“21“")
+  let (spelledOut, _) = englishG2P.phonemize(text: "“twenty one“")
+  let (one, _) = englishG2P.phonemize(text: "“one“")
+
+  #expect(numeric == spelledOut)
+  #expect(numeric != one)
 }
 
 @Test func testEnglishNum2Word_RecursiveTwentyForms() {
