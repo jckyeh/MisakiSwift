@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import MisakiSwift
 
@@ -24,6 +25,29 @@ let texts: [(originalText: String, britishPhonetization: String, americanPhoneit
   for pair in texts {
     #expect(englishG2P.phonemize(text: pair.0).0 == pair.2)
   }
+}
+
+@Test func testEnglishNum2Word_TwentyOneThroughTwentyNine() {
+  let converter = EnglishNum2Word()
+  let expected = [
+    "twenty-one", "twenty-two", "twenty-three",
+    "twenty-four", "twenty-five", "twenty-six",
+    "twenty-seven", "twenty-eight", "twenty-nine"
+  ]
+
+  for (offset, words) in expected.enumerated() {
+    #expect(converter.convert(Decimal(21 + offset)) == words)
+  }
+}
+
+@Test func testEnglishNum2Word_RecursiveTwentyForms() {
+  let converter = EnglishNum2Word()
+
+  #expect(converter.convert(Decimal(121)) == "one hundred and twenty-one")
+  #expect(converter.convert(Decimal(1_021)) == "one thousand, twenty-one")
+  #expect(converter.convert(Decimal(2_021), to: .year) == "twenty twenty-one")
+  #expect(converter.convert(Decimal(string: "21.5")!) == "twenty-one point five")
+  #expect(converter.convert(Decimal(21), to: .ordinal) == "twenty-First")
 }
 
 // Retokenize Currency Index Fix Tests
