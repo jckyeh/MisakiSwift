@@ -3,6 +3,8 @@ import NaturalLanguage
 import MLXUtilsLibrary
 
 final class Lexicon {
+  static let forcedInitialisms: Set<String> = ["IT"]
+
   static let usVocab: Set<Character> = Set("AIOWYbdfhijklmnpstuvwzæðŋɑɔəɛɜɡɪɹɾʃʊʌʒʤʧˈˌθᵊᵻʔ")
   static let gbVocab: Set<Character> = Set("AIQWYabdfhijklmnpstuvwzðŋɑɒɔəɛɜɡɪɹʃʊʌʒʤʧˈˌːθᵊ")
   static let lexiconOrdinals: [Int] = [39, 45] + Array(65...90) + Array(97...122)
@@ -194,7 +196,12 @@ final class Lexicon {
   }
   
   private func getSpecialCase(_ word: String, tag: NLTag?, stress: Double?, ctx: TokenContext) -> (phoneme: String?, rating: Int?) {
-    if tag == .punctuation, let target = Lexicon.addSymbols[word] {
+    // Ambiguous all-caps forms whose lowercase spelling is an ordinary word.
+    // Keep this exact-case set intentionally small: plain text cannot reveal
+    // whether arbitrary uppercase words are initialisms or emphasis.
+    if Lexicon.forcedInitialisms.contains(word) {
+      return getNNP(word)
+    } else if tag == .punctuation, let target = Lexicon.addSymbols[word] {
       return lookup(target, tag: nil, stress: -0.5, ctx: ctx)
     } else if let sym = Lexicon.symbolSet[word] {
       return lookup(sym, tag: nil, stress: nil, ctx: ctx)

@@ -60,6 +60,60 @@ let texts: [(originalText: String, britishPhonetization: String, americanPhoneit
   #expect(converter.convert(Decimal(21), to: .ordinal) == "twenty-First")
 }
 
+@Test(arguments: [false, true])
+func testUppercaseChapterOpeningPersonalNameUsesWordPronunciation(british: Bool) {
+  let englishG2P = EnglishG2P(british: british)
+  let reported = "DONALD SPED DOWN highway 17, a flashing red light on his dash."
+  let baseline = "Donald sped down highway 17, a flashing red light on his dash."
+  let (reportedPhonemes, reportedTokens) = englishG2P.phonemize(text: reported)
+  let (baselinePhonemes, _) = englishG2P.phonemize(text: baseline)
+
+  #expect(reportedPhonemes == baselinePhonemes)
+  let donald = reportedTokens.first { $0.text == "DONALD" }
+  #expect(donald != nil)
+  #expect(donald?.phonemes != nil)
+  if let range = donald?.tokenRange {
+    #expect(String(reported[range]) == "DONALD")
+  }
+}
+
+@Test(arguments: [false, true])
+func testExactUppercaseITIsSpelledWithoutChangingItsToken(british: Bool) {
+  let englishG2P = EnglishG2P(british: british)
+  let reported = "The head of IT stood alone."
+  let (reportedPhonemes, reportedTokens) = englishG2P.phonemize(text: reported)
+  let (spelledPhonemes, _) = englishG2P.phonemize(text: "The head of I T stood alone.")
+  let (lowercasePhonemes, _) = englishG2P.phonemize(text: "The head of it stood alone.")
+  let (capitalizedPhonemes, _) = englishG2P.phonemize(text: "The head of It stood alone.")
+
+  #expect(reportedPhonemes.filter { !$0.isWhitespace }
+    == spelledPhonemes.filter { !$0.isWhitespace })
+  #expect(reportedPhonemes != lowercasePhonemes)
+  #expect(reportedPhonemes != capitalizedPhonemes)
+  let initialism = reportedTokens.first { $0.text == "IT" }
+  #expect(initialism != nil)
+  if let range = initialism?.tokenRange {
+    #expect(String(reported[range]) == "IT")
+  }
+}
+
+@Test func testPronunciationOnlyCasingPolicyIsNarrow() {
+  #expect(EnglishG2P.pronunciationSpelling(for: "DONALD", tag: .personalName) == "Donald")
+  #expect(EnglishG2P.pronunciationSpelling(for: "SPED", tag: .verb) == "SPED")
+  #expect(EnglishG2P.pronunciationSpelling(for: "DOWN", tag: .particle) == "DOWN")
+  #expect(EnglishG2P.pronunciationSpelling(for: "HAL", tag: .personalName) == "HAL")
+  #expect(EnglishG2P.pronunciationSpelling(for: "FBI", tag: .organizationName) == "FBI")
+  #expect(EnglishG2P.pronunciationSpelling(for: "JFK", tag: .placeName) == "JFK")
+  #expect(EnglishG2P.pronunciationSpelling(for: "USSR", tag: .organizationName) == "USSR")
+  #expect(EnglishG2P.pronunciationSpelling(for: "NASA", tag: .organizationName) == "NASA")
+  #expect(EnglishG2P.pronunciationSpelling(for: "DÓNALD", tag: .personalName) == "DÓNALD")
+
+  #expect(Lexicon.forcedInitialisms == ["IT"])
+  for ordinaryForm in ["it", "It", "US", "NO", "AM", "IN", "TO", "GO"] {
+    #expect(!Lexicon.forcedInitialisms.contains(ordinaryForm))
+  }
+}
+
 // Retokenize Currency Index Fix Tests
 @Test func testRetokenize_CurrencyWithFollowingTokens() async throws {
   let englishG2P = EnglishG2P(british: true)

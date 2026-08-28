@@ -74,6 +74,34 @@ final public class EnglishG2P {
     let futureTo = (token.text == "to" || token.text == "To") || (token.text == "TO" && (token.tag == .particle || token.tag == .preposition))
     return TokenContext(futureVowel: vowel, futureTo: futureTo)
   }
+
+  /// Returns a pronunciation-only view of typographically uppercased personal
+  /// names. NaturalLanguage tags chapter-opening names such as `DONALD` as a
+  /// personal name, while the lexicon treats the all-caps spelling as an
+  /// initialism. Feed `Donald` through the ordinary lexicon/fallback path, but
+  /// keep the original token text and range in the emitted `MToken`.
+  ///
+  /// Four ASCII letters is deliberately conservative: short all-caps names
+  /// and abbreviations (`HAL`, `JFK`) are irreducibly ambiguous without richer
+  /// source metadata. Other proper-name classes are left untouched as well.
+  static func pronunciationSpelling(for text: String, tag: NLTag?) -> String {
+    let scalars = text.unicodeScalars
+    guard tag == .personalName,
+          scalars.count >= 4,
+          scalars.allSatisfy({ (65...90).contains($0.value) }) else {
+      return text
+    }
+
+    return text.prefix(1) + text.dropFirst().lowercased()
+  }
+
+  private func pronunciationToken(for token: MToken) -> MToken {
+    let spelling = Self.pronunciationSpelling(for: token.text, tag: token.tag)
+    guard spelling != token.text else { return token }
+    let pronunciationToken = MToken(copying: token)
+    pronunciationToken.text = spelling
+    return pronunciationToken
+  }
   
   func stressWeight(_ phonemes: String?) -> Int {
     let dipthongs = Set("AIOQWYʤʧ")
@@ -410,14 +438,15 @@ final public class EnglishG2P {
     var ctx = TokenContext()
     for i in stride(from: words.count - 1, through: 0, by: -1) {
       if let w = words[i] as? MToken {
+        let spokenToken = pronunciationToken(for: w)
         if w.phonemes == nil {
-          let out = lexicon.transcribe(w, ctx: ctx)
+          let out = lexicon.transcribe(spokenToken, ctx: ctx)
           w.phonemes = out.0
           w.`_`.rating = out.1
         }
         
         if w.phonemes == nil {
-          let out = fallback(w)
+          let out = fallback(spokenToken)
           w.phonemes = out.0
           w.`_`.rating = out.1
         }
