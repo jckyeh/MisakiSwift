@@ -102,6 +102,14 @@ final public class EnglishG2P {
     pronunciationToken.text = spelling
     return pronunciationToken
   }
+
+  /// Builds the pronunciation view for a retokenized group without changing
+  /// the original tokens that will be returned to callers. This matters for a
+  /// name followed immediately by punctuation, which Misaki represents as an
+  /// `[MToken]` group rather than the scalar path above.
+  private func pronunciationToken(for tokens: [MToken]) -> MToken {
+    mergeTokens(tokens.map { pronunciationToken(for: $0) })
+  }
   
   func stressWeight(_ phonemes: String?) -> Int {
     let dipthongs = Set("AIOQWYʤʧ")
@@ -458,8 +466,12 @@ final public class EnglishG2P {
         var shouldFallback = false
         while left < right {
           let hasFixed = arr[left..<right].contains { $0.`_`.alias != nil || $0.phonemes != nil }
-          let token: MToken? = hasFixed ? nil : mergeTokens(Array(arr[left..<right]))
-          let res: (String?, Int?) = (token == nil) ? (nil, nil) : lexicon.transcribe(token!, ctx: ctx)
+          let sourceTokens = Array(arr[left..<right])
+          let token: MToken? = hasFixed ? nil : mergeTokens(sourceTokens)
+          let spokenToken: MToken? = hasFixed ? nil : pronunciationToken(for: sourceTokens)
+          let res: (String?, Int?) = (spokenToken == nil)
+            ? (nil, nil)
+            : lexicon.transcribe(spokenToken!, ctx: ctx)
           
           if let phonemes = res.0 {
             arr[left].phonemes = phonemes
@@ -491,9 +503,8 @@ final public class EnglishG2P {
         }
         
         if shouldFallback {
-          let token = mergeTokens(arr)
           let first = arr[0]
-          let out = fallback(token)
+          let out = fallback(pronunciationToken(for: arr))
           first.phonemes = out.0
           first.`_`.rating = out.1
           arr[0] = first

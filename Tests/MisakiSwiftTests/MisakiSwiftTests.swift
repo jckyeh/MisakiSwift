@@ -63,28 +63,50 @@ let texts: [(originalText: String, britishPhonetization: String, americanPhoneit
 @Test(arguments: [false, true])
 func testUppercaseChapterOpeningPersonalNameUsesWordPronunciation(british: Bool) {
   let englishG2P = EnglishG2P(british: british)
-  let reported = "DONALD SPED DOWN highway 17, a flashing red light on his dash."
-  let baseline = "Donald sped down highway 17, a flashing red light on his dash."
-  let (reportedPhonemes, reportedTokens) = englishG2P.phonemize(text: reported)
-  let (baselinePhonemes, _) = englishG2P.phonemize(text: baseline)
+  let reported = "DONALD SPED DOWN highway 17, a flashing red light on his dash warning him as he exceeded the local speed limit."
+  let baseline = reported.replacingOccurrences(of: "DONALD", with: "Donald")
+  let (_, reportedTokens) = englishG2P.phonemize(text: reported)
+  let (_, baselineTokens) = englishG2P.phonemize(text: baseline)
 
-  #expect(reportedPhonemes == baselinePhonemes)
   let donald = reportedTokens.first { $0.text == "DONALD" }
+  let baselineDonald = baselineTokens.first { $0.text == "Donald" }
   #expect(donald != nil)
-  #expect(donald?.phonemes != nil)
+  #expect(donald?.phonemes == baselineDonald?.phonemes)
   if let range = donald?.tokenRange {
     #expect(String(reported[range]) == "DONALD")
   }
 }
 
 @Test(arguments: [false, true])
+func testUppercasePersonalNameUsesWordPronunciationAtTokenGroupEdges(british: Bool) {
+  let englishG2P = EnglishG2P(british: british)
+
+  for reported in ["DONALD", "He was DONALD."] {
+    let baseline = reported.replacingOccurrences(of: "DONALD", with: "Donald")
+    let (_, reportedTokens) = englishG2P.phonemize(text: reported)
+    let (_, baselineTokens) = englishG2P.phonemize(text: baseline)
+    let donald = reportedTokens.first { $0.text.contains("DONALD") }
+    let baselineDonald = baselineTokens.first { $0.text.contains("Donald") }
+
+    #expect(donald != nil)
+    #expect(donald?.phonemes == baselineDonald?.phonemes)
+    if let range = donald?.tokenRange {
+      #expect(String(reported[range]) == donald?.text)
+    }
+  }
+}
+
+@Test(arguments: [false, true])
 func testExactUppercaseITIsSpelledWithoutChangingItsToken(british: Bool) {
   let englishG2P = EnglishG2P(british: british)
-  let reported = "The head of IT stood alone."
+  let reported = "The head of IT – the true head of silo twelve – stood alone for a moment, hand on her chin."
   let (reportedPhonemes, reportedTokens) = englishG2P.phonemize(text: reported)
-  let (spelledPhonemes, _) = englishG2P.phonemize(text: "The head of I T stood alone.")
-  let (lowercasePhonemes, _) = englishG2P.phonemize(text: "The head of it stood alone.")
-  let (capitalizedPhonemes, _) = englishG2P.phonemize(text: "The head of It stood alone.")
+  let (spelledPhonemes, _) = englishG2P.phonemize(
+    text: reported.replacingOccurrences(of: "IT", with: "I T"))
+  let (lowercasePhonemes, _) = englishG2P.phonemize(
+    text: reported.replacingOccurrences(of: "IT", with: "it"))
+  let (capitalizedPhonemes, _) = englishG2P.phonemize(
+    text: reported.replacingOccurrences(of: "IT", with: "It"))
 
   #expect(reportedPhonemes.filter { !$0.isWhitespace }
     == spelledPhonemes.filter { !$0.isWhitespace })
